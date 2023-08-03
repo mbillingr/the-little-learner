@@ -1,11 +1,22 @@
 module Schemish
 
-export list, ref
+export cons, len, list, ref, snoc
+export is_scalar, tensor, tlen, tref
 
-# 0-based indexing
-ref(obj, idx) = obj[idx + 1]
+# lists
+list(members...) = members
+cons(m, ms) = (m, ms...)
+snoc(ms, m) = (ms..., m)
+ref(ms, i) = ms[i+1]  # 0-based indexing
+len(ms) = length(ms)
 
-# list construction
-list(items...) = items
+
+# tensors
+is_scalar(obj::Number) = true
+is_scalar(obj::Tuple) = false
+is_scalar(obj::AbstractArray) = false
+tensor(elements...) = elements
+tlen(es) = length(es)
+tref(es, i) = es[i+1]  # 0-based indexing
 
 end
