@@ -1,9 +1,12 @@
 module Schemish
 
+export sqr
 export cons, len, list, ref, snoc
 export is_scalar, tensor, tlen, tref
-export sum_1
-export @ext1, @ext2
+export ext1, @ext1, @ext2
+
+# various functions
+sqr(x) = x * x
 
 # lists
 list(members...) = members
@@ -35,14 +38,6 @@ tref(t::MyTensor, i) = t.elements[i+1]  # 0-based indexing
 
 trank(t::Number) = 0
 trank(t::MyTensor) = 1 + trank(tref(t, 0))
-
-function sum_1(t::MyTensor)
-     result = 0
-     for i in 0:tlen(t)-1
-        result = result + tref(t, i)
-     end
-     result
-end
 
 function Base.show(io::IO, t::MyTensor)
     print(io, "[")
@@ -87,6 +82,18 @@ macro ext1(func, base_rank)
     end
 end
 
+function ext1(func, base_rank)
+    function extended(t::Tensor)
+        T = typeof(t)
+        if trank(t) > (base_rank)
+            return T([extended(e) for e in t.elements])
+        else
+            return func(t)
+        end
+    end
+    extended
+end
+
 macro ext2(func, base_rank1, base_rank2)
     :(function $func(t::Tensor, u::Tensor)
         T = typeof(t)
@@ -110,5 +117,21 @@ macro ext2(func, base_rank1, base_rank2)
         end
     end)
 end
+
+# extend builtins
+
+@ext1 Base.:- 0
+@ext1 Base.:+ 0
+@ext1 Base.abs 0
+@ext1 Base.sqrt 0
+@ext1 Base.sin 0
+@ext1 Base.cos 0
+@ext1 Base.tan 0
+@ext1 Base.atan 0
+
+@ext2(Base.:*, 0, 0)
+@ext2(Base.:/, 0, 0)
+@ext2(Base.:+, 0, 0)
+@ext2(Base.:-, 0, 0)
 
 end
