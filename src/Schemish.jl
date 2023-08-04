@@ -2,7 +2,9 @@ module Schemish
 
 export sqr
 export cons, len, list, ref, snoc
+export Tensor
 export is_scalar, tensor, tlen, tref
+export gradient_of
 export ext1, @ext1, @ext2
 
 # various functions
@@ -62,7 +64,7 @@ function Base.:(==)(t::Tensor, u::Tensor)
         end
     end
 
-    true    
+    true
 end
 
 macro ext1(extended, func, base_rank)
