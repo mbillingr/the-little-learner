@@ -2,8 +2,8 @@ module Schemish
 
 export cons, len, list, ref, snoc
 export is_scalar, tensor, tlen, tref
-
-import Base.*, Base.+
+export sum_1
+export @ext1, @ext2
 
 # lists
 list(members...) = members
@@ -14,48 +14,101 @@ len(ms) = length(ms)
 
 
 # tensors
-struct Tensor
+struct MyTensor
     elements::AbstractArray
 end
 
-is_scalar(obj::Number) = true
-is_scalar(obj::Tensor) = false
-is_scalar(obj::Tuple) = false
-is_scalar(obj::AbstractArray) = false
+Tensor = Union{Number,MyTensor}
 
-tensor(s::Number) = s
-tensor(ts::Tensor...) = Tensor([t for t in ts])
-tensor(es::AbstractArray) = Tensor([tensor(e) for e in es])
+is_scalar(obj::Tensor) = false
+is_scalar(obj::Number) = true
+
+tensor(s::Number)::Tensor = s
+tensor(ts::Tensor...)::Tensor = MyTensor([t for t in ts])
+tensor(es::AbstractArray)::Tensor = MyTensor([tensor(e) for e in es])
 
 tlen(es) = length(es)
-tlen(t::Tensor) = length(t.elements)
+tlen(t::MyTensor) = length(t.elements)
 
 tref(es, i) = es[i+1]  # 0-based indexing
-tref(t::Tensor, i) = t.elements[i+1]  # 0-based indexing
+tref(t::MyTensor, i) = t.elements[i+1]  # 0-based indexing
 
-function *(ta::Tensor, tb::Tensor)
-    return Tensor([a * b for (a, b) in zip(ta.elements, tb.elements)])
+trank(t::Number) = 0
+trank(t::MyTensor) = 1 + trank(tref(t, 0))
+
+function sum_1(t::MyTensor)
+     result = 0
+     for i in 0:tlen(t)-1
+        result = result + tref(t, i)
+     end
+     result
 end
 
-function *(a::Number, t::Tensor)
-    return Tensor([a * b for b in t.elements])
+function Base.show(io::IO, t::MyTensor)
+    print(io, "[")
+    if tlen(t) > 0
+        show(io, tref(t, 0))
+    end
+    for i in 1:tlen(t)-1
+        print(io, " ")
+        show(io, tref(t, i))
+    end
+    print(io, "]")
 end
 
-function *(t::Tensor, a::Number)
-    return Tensor([a * b for b in t.elements])
+function Base.:(==)(t::Tensor, u::Tensor)
+    if tlen(t) != tlen(u)
+        return false
+    end
+
+    for i in 0:tlen(t)-1
+        if tref(t, i) != tref(u, i)
+            return false
+        end
+    end
+
+    true    
 end
 
-function +(ta::Tensor, tb::Tensor)
-    return Tensor([a * b for (a, b) in zip(ta.elements, tb.elements)])
+macro ext1(extended, func, base_rank)
+    :(function $extended(t::Tensor)
+        T = typeof(t)
+        if trank(t) > ($base_rank)
+            return T([$extended(e) for e in t.elements])
+        else
+            return $func(t)
+        end
+    end)
 end
 
-function +(a::Number, t::Tensor)
-    return Tensor([a + b for b in t.elements])
+macro ext1(func, base_rank)
+    quote
+        @ext1 $func $func $base_rank
+    end
 end
 
-function +(t::Tensor, a::Number)
-    return Tensor([a + b for b in t.elements])
+macro ext2(func, base_rank1, base_rank2)
+    :(function $func(t::Tensor, u::Tensor)
+        T = typeof(t)
+        U = typeof(u)
+        m = trank(t)
+        n = trank(u)
+        if m == ($base_rank1) && n == ($base_rank2)
+            return $func(t)
+        elseif m == ($base_rank1)
+            return U([$func(t, ue) for ue in u.elements])
+        elseif n == ($base_rank2)
+            return T([$func(te, u) for te in t.elements])
+        elseif tlen(t) == tlen(u)
+            return T([$func(te, ue) for (te, ue) in zip(t.elements, u.elements)])
+        elseif n > m
+            return U([$func(t, ue) for ue in u.elements])
+        elseif m > n
+            return T([$func(te, u) for te in t.elements])
+        else
+            error("I don't think we should ever reach this")
+        end
+    end)
 end
-
 
 end

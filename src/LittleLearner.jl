@@ -4,6 +4,24 @@ export rank, shape
 
 using ..Schemish
 
+
+@ext1 Base.:- 0
+@ext1 Base.:+ 0
+@ext1 Base.abs 0
+@ext1 Base.sqrt 0
+@ext1 Base.sin 0
+@ext1 Base.cos 0
+@ext1 Base.tan 0
+@ext1 Base.atan 0
+
+@ext1 Base.sum sum_1 1
+
+@ext2(Base.:*, 0, 0)
+@ext2(Base.:/, 0, 0)
+@ext2(Base.:+, 0, 0)
+@ext2(Base.:-, 0, 0)
+
+
 # frame 39:37
 function shape(t)
     result = list()
