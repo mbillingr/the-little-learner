@@ -1,8 +1,7 @@
 module Schemish
 
 export sqr
-export cons, len, list, ref, snoc
-export Tensor
+export List, cons, len, list, ref, snoc
 export is_scalar, tensor, tlen, tref
 export gradient_of
 export ext1, @ext1, @ext2
@@ -11,11 +10,12 @@ export ext1, @ext1, @ext2
 sqr(x) = x * x
 
 # lists
-list(members...) = members
-cons(m, ms) = (m, ms...)
-snoc(ms, m) = (ms..., m)
-ref(ms, i) = ms[i+1]  # 0-based indexing
-len(ms) = length(ms)
+List = Tuple
+list(members...)::List = members
+cons(m, ms::List)::List = (m, ms...)
+snoc(ms::List, m)::List = (ms..., m)
+ref(ms::List, i) = ms[i+1]  # 0-based indexing
+len(ms::List) = length(ms)
 
 
 # tensors
@@ -23,14 +23,11 @@ struct MyTensor
     elements::AbstractArray
 end
 
-Tensor = Union{Number,MyTensor}
+is_scalar(obj) = true
+is_scalar(obj::MyTensor) = false
 
-is_scalar(obj::Tensor) = false
-is_scalar(obj::Number) = true
-
-tensor(s::Number)::Tensor = s
-tensor(ts::Tensor...)::Tensor = MyTensor([t for t in ts])
-tensor(es::AbstractArray)::Tensor = MyTensor([tensor(e) for e in es])
+tensor(s) = s
+tensor(es::AbstractArray) = MyTensor([tensor(e) for e in es])
 
 tlen(es) = length(es)
 tlen(t::MyTensor) = length(t.elements)
@@ -38,7 +35,7 @@ tlen(t::MyTensor) = length(t.elements)
 tref(es, i) = es[i+1]  # 0-based indexing
 tref(t::MyTensor, i) = t.elements[i+1]  # 0-based indexing
 
-trank(t::Number) = 0
+trank(t) = 0
 trank(t::MyTensor) = 1 + trank(tref(t, 0))
 
 function Base.show(io::IO, t::MyTensor)
@@ -53,7 +50,7 @@ function Base.show(io::IO, t::MyTensor)
     print(io, "]")
 end
 
-function Base.:(==)(t::Tensor, u::Tensor)
+function Base.:(==)(t::MyTensor, u::MyTensor)
     if tlen(t) != tlen(u)
         return false
     end
@@ -67,8 +64,10 @@ function Base.:(==)(t::Tensor, u::Tensor)
     true
 end
 
+Base.foldr(f, x::MyTensor; init) = foldr(f, x.elements; init=init)
+
 macro ext1(extended, func, base_rank)
-    :(function $extended(t::Tensor)
+    :(function $extended(t)
         T = typeof(t)
         if trank(t) > ($base_rank)
             return T([$extended(e) for e in t.elements])
@@ -85,7 +84,7 @@ macro ext1(func, base_rank)
 end
 
 function ext1(func, base_rank)
-    function extended(t::Tensor)
+    function extended(t)
         T = typeof(t)
         if trank(t) > (base_rank)
             return T([extended(e) for e in t.elements])
@@ -97,7 +96,7 @@ function ext1(func, base_rank)
 end
 
 macro ext2(func, base_rank1, base_rank2)
-    :(function $func(t::Tensor, u::Tensor)
+    :(function $func(t, u)
         T = typeof(t)
         U = typeof(u)
         m = trank(t)

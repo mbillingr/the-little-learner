@@ -12,7 +12,9 @@ end
 gradient_of = ∇
 
 
-struct Dual
+# Declaring it mutable seems like an easy way to ensure that
+# each Dual is a different instance.
+mutable struct Dual
     real::Float64
     link::Any  # todo: these are functions
 end
@@ -33,8 +35,8 @@ is_scalar(::Scalar) = true
 κ(_) = end_of_chain
 κ(d::Dual) = d.link
 
-map_star(f::Any, ys) = map((y) -> map_star(f, y), ys)
-map_star(f::Any, t::Tensor) = tensor([map_star(f, tref(t, i)) for i in 0:tlen(t)-1])
+map_star(f::Any, t) = tensor([map_star(f, tref(t, i)) for i in 0:tlen(t)-1])
+map_star(f::Any, ys::List) = map((y) -> map_star(f, y), ys)
 map_star(f::Any, y::Scalar) = f(y)
 map_star(f::Any, y::Number) = f(y)  # required because both Tensor and Scalar are supertypes of Number
 
@@ -46,7 +48,6 @@ function ∇_once(y, wrt)
 end
 
 ∇_σ(y, σ) = foldr(∇_σ, y; init=σ)
-∇_σ(t::Tensor, σ) = foldr(∇_σ, t.elements; init=σ)
 ∇_σ(y::Scalar, σ) =
     let k = κ(y)
         k(y, 1.0, σ)
@@ -111,8 +112,8 @@ end
 macro overload2(basefn, fn)
     quote
         $basefn(da::Dual, db::Dual) = $fn(da, db)
-        $basefn(a, db::Dual) = $fn(dual(a, constant), db)
-        $basefn(da::Dual, b) = $fn(da, dual(b, constant))
+        $basefn(a::Number, db::Dual) = $fn(dual(a, constant), db)
+        $basefn(da::Dual, b::Number) = $fn(da, dual(b, constant))
     end
 end
 
