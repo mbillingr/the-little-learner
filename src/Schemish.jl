@@ -5,6 +5,7 @@ export List, cons, len, list, ref, snoc
 export is_scalar, tensor, tlen, tref
 export gradient_of
 export ext1, @ext1, @ext2
+export @with_hypers, @with_hyper
 
 # various functions
 sqr(x) = x * x
@@ -134,5 +135,33 @@ end
 @ext2(Base.:/, 0, 0)
 @ext2(Base.:+, 0, 0)
 @ext2(Base.:-, 0, 0)
+
+# for temporarily setting a hyperparameter (aka dynamic variable)
+macro with_hyper(var, val, body)
+    backup = gensym()
+    esc(
+        quote
+            global $var
+            $backup = $var
+            $var = $val
+            try
+                $body
+            finally
+                global $var = $backup
+            end
+        end
+    )
+end
+
+# for temporarily setting hyperparameters (aka dynamic variables)
+macro with_hypers(args...)
+    body = args[end]
+    vars = args[1:2:end-2]
+    vals = args[2:2:end-1]
+    for (var, val) in zip(vars, vals)
+        body = :(@with_hyper($var, $val, $body))
+    end
+    esc(body)
+end
 
 end
