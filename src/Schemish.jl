@@ -2,9 +2,9 @@ module Schemish
 
 export sqr
 export List, cons, len, list, ref, snoc
-export is_scalar, tensor, tlen, tref
+export is_scalar, tensor, tlen, tref, trank
 export gradient_of
-export ext1, @ext1, @ext2
+export ext1, ext2, @ext1, @ext2
 export @with_hypers, @with_hyper
 
 # various functions
@@ -69,12 +69,7 @@ Base.foldr(f, x::MyTensor; init) = foldr(f, x.elements; init=init)
 
 macro ext1(extended, func, base_rank)
     :(function $extended(t)
-        T = typeof(t)
-        if trank(t) > ($base_rank)
-            return T([$extended(e) for e in t.elements])
-        else
-            return $func(t)
-        end
+        ext1($func, $base_rank)(t)
     end)
 end
 
@@ -96,28 +91,42 @@ function ext1(func, base_rank)
     extended
 end
 
+macro ext2(extended, func, base_rank1, base_rank2)
+    :(function $extended(t, u)
+        ext2($func, $base_rank1, $base_rank2)(t, u)
+    end)
+end
+
 macro ext2(func, base_rank1, base_rank2)
-    :(function $func(t, u)
+    quote
+        @ext2 $func $func $base_rank1 $base_rank2
+    end
+end
+
+
+function ext2(func, base_rank1, base_rank2)
+    function extended(t, u)
         T = typeof(t)
         U = typeof(u)
         m = trank(t)
         n = trank(u)
-        if m == ($base_rank1) && n == ($base_rank2)
-            return $func(t)
-        elseif m == ($base_rank1)
-            return U([$func(t, ue) for ue in u.elements])
-        elseif n == ($base_rank2)
-            return T([$func(te, u) for te in t.elements])
+        if m == (base_rank1) && n == (base_rank2)
+            return func(t, u)
+        elseif m == (base_rank1)
+            return U([extended(t, ue) for ue in u.elements])
+        elseif n == (base_rank2)
+            return T([extended(te, u) for te in t.elements])
         elseif tlen(t) == tlen(u)
-            return T([$func(te, ue) for (te, ue) in zip(t.elements, u.elements)])
+            return T([extended(te, ue) for (te, ue) in zip(t.elements, u.elements)])
         elseif n > m
-            return U([$func(t, ue) for ue in u.elements])
+            return U([extended(t, ue) for ue in u.elements])
         elseif m > n
-            return T([$func(te, u) for te in t.elements])
+            return T([extended(te, u) for te in t.elements])
         else
             error("I don't think we should ever reach this")
         end
-    end)
+    end
+    extended
 end
 
 # extend builtins
