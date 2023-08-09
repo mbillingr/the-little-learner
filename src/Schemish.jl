@@ -2,7 +2,7 @@ module Schemish
 
 export sqr
 export List, cons, len, list, ref, snoc
-export is_scalar, tensor, tlen, trank, tref, trefs, zeroes
+export is_scalar, flatten_2, rank_gt, tensor, tlen, tmap, trank, tref, trefs, of_rank, zeroes
 export gradient_of
 export ext1, ext2, @ext1, @ext2
 export @with_hypers, @with_hyper
@@ -41,8 +41,43 @@ tref(t::MyTensor, i) = t.elements[i+1]  # 0-based indexing
 
 trefs(t::MyTensor, is) = tensor([t.elements[i+1] for i in is])
 
-zeroes(s) = 0.0
-zeroes(t::MyTensor) = tensor([zeroes(te) for te in t.elements])
+tmap(f, ts::MyTensor...) = tensor(map(f, map((t) -> t.elements, ts)...))
+
+flatten_2(t::MyTensor) = tensor(cat(map((te) -> te.elements, t.elements)...; dims=1))
+
+function of_rank(n, t)
+    while true
+        if n == 0
+            return is_scalar(t)
+        elseif is_scalar(t)
+            return false
+        else
+            n -= 1
+            t = tref(t, 0)
+        end
+    end
+end
+
+function of_ranks(n, t, m, u)
+    if of_rank(n, t)
+        of_rank(m, u)
+    else
+        false
+    end
+end
+
+function rank_gt(t, u)
+    while true
+        if is_scalar(t)
+            return false
+        elseif is_scalar(u)
+            return true
+        else
+            t = tref(t, 0)
+            u = tref(u, 0)
+        end
+    end
+end
 
 function Base.show(io::IO, t::MyTensor)
     print(io, "[")
@@ -84,13 +119,13 @@ macro ext1(func, base_rank)
     end
 end
 
+# frame 183:23
 function ext1(func, base_rank)
     function extended(t)
-        T = typeof(t)
-        if trank(t) > (base_rank)
-            return T([extended(e) for e in t.elements])
-        else
+        if of_rank(base_rank, t)
             return func(t)
+        else
+            return tmap(extended, t)
         end
     end
     extended
@@ -115,24 +150,28 @@ function ext2(func, base_rank1, base_rank2)
         U = typeof(u)
         m = trank(t)
         n = trank(u)
-        if m == (base_rank1) && n == (base_rank2)
+        if of_ranks(base_rank1, t, base_rank2, u)
             return func(t, u)
-        elseif m == (base_rank1)
-            return U([extended(t, ue) for ue in u.elements])
-        elseif n == (base_rank2)
-            return T([extended(te, u) for te in t.elements])
+        elseif of_rank(base_rank1, t)
+            return tmap((eu)->extended(t, eu), u)
+        elseif of_rank(base_rank2, u)
+            return tmap((et)->extended(et, u), t)
         elseif tlen(t) == tlen(u)
-            return T([extended(te, ue) for (te, ue) in zip(t.elements, u.elements)])
-        elseif n > m
-            return U([extended(t, ue) for ue in u.elements])
-        elseif m > n
-            return T([extended(te, u) for te in t.elements])
+            return tmap(extended, t, u)
+        elseif rank_gt(t, u)
+            return tmap((et)->extended(et, u), t)
+        elseif rank_gt(u, t)
+            return tmap((eu)->extended(t, eu), u)
         else
             error("I don't think we should ever reach this")
         end
     end
     extended
 end
+
+# second-tier functions
+
+@ext1 zeroes ((x) -> 0.0) 0
 
 # extend builtins
 
