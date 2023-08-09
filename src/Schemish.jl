@@ -2,7 +2,7 @@ module Schemish
 
 export sqr
 export List, cons, len, list, ref, snoc
-export is_scalar, tensor, tlen, tref, trank
+export is_scalar, tensor, tlen, trank, tref, trefs
 export gradient_of
 export ext1, ext2, @ext1, @ext2
 export @with_hypers, @with_hyper
@@ -33,11 +33,13 @@ tensor(es::AbstractArray) = MyTensor([tensor(e) for e in es])
 tlen(es) = length(es)
 tlen(t::MyTensor) = length(t.elements)
 
+trank(t) = 0
+trank(t::MyTensor) = 1 + trank(tref(t, 0))
+
 tref(es, i) = es[i+1]  # 0-based indexing
 tref(t::MyTensor, i) = t.elements[i+1]  # 0-based indexing
 
-trank(t) = 0
-trank(t::MyTensor) = 1 + trank(tref(t, 0))
+trefs(t::MyTensor, is) = tensor([t.elements[i+1] for i in is])
 
 function Base.show(io::IO, t::MyTensor)
     print(io, "[")
