@@ -1,7 +1,7 @@
 module Schemish
 
 export sqr
-export List, cons, len, list, ref, snoc
+export List, append, cons, len, list, ref, refr, snoc
 export is_scalar, flatten_2, rank_gt, tensor, tlen, tmap, trank, tref, trefs, of_rank, zeroes
 export gradient_of
 export ext1, ext2, @ext1, @ext2
@@ -18,6 +18,7 @@ snoc(ms::List, m)::List = (ms..., m)
 ref(ms::List, i) = ms[i+1]  # 0-based indexing
 refr(ms::List, i) = ms[i+1:end]
 len(ms::List) = length(ms)
+append(a::List, b::List) = (a..., b...)
 
 
 # tensors
