@@ -16,6 +16,7 @@ list(members...)::List = members
 cons(m, ms::List)::List = (m, ms...)
 snoc(ms::List, m)::List = (ms..., m)
 ref(ms::List, i) = ms[i+1]  # 0-based indexing
+refr(ms::List, i) = ms[i+1:end]
 len(ms::List) = length(ms)
 
 
