@@ -2,7 +2,8 @@ module Schemish
 
 export sqr
 export List, append, cons, len, list, ref, refr, snoc
-export is_scalar, flatten_2, rank_gt, tensor, tlen, tmap, trank, tref, trefs, of_rank, zeroes
+export is_scalar, flatten_2, random_tensor, rank_gt, tensor, tlen,
+    tmap, trank, tref, trefs, of_rank, zeroes, zero_tensor
 export gradient_of
 export ext1, ext2, @ext1, @ext2
 export @with_hypers, @with_hyper
@@ -32,11 +33,25 @@ is_scalar(obj::MyTensor) = false
 tensor(s) = s
 tensor(es::AbstractArray) = MyTensor([tensor(e) for e in es])
 
+init_tensor(f) =
+    (s) ->
+        if len(s) == 1
+            tensor(f(ref(s, 0)))
+        else
+            tensor([init_tensor(f)(refr(s, 1)) for _ in 1:ref(s, 0)])
+        end
+
+zero_tensor = init_tensor(zeros)
+random_tensor(c, v, s) = init_tensor((n) -> randn(n) .* sqrt(v) .+ c)(s)
+
 tlen(es) = length(es)
 tlen(t::MyTensor) = length(t.elements)
 
 trank(t) = 0
 trank(t::MyTensor) = 1 + trank(tref(t, 0))
+
+tshape(s) = list()
+tshape(t::MyTensor) = cons(tlen(t), tshape(tref(t, 0)))
 
 tref(es, i) = es[i+1]  # 0-based indexing
 tref(t::MyTensor, i) = t.elements[i+1]  # 0-based indexing
@@ -82,13 +97,15 @@ function rank_gt(t, u)
 end
 
 function Base.show(io::IO, t::MyTensor)
+    fmt(x) = show(io, round(x, digits=2))
+    fmt(x::MyTensor) = show(io, x)
     print(io, "[")
     if tlen(t) > 0
-        show(io, tref(t, 0))
+        fmt(tref(t, 0))
     end
     for i in 1:tlen(t)-1
         print(io, " ")
-        show(io, tref(t, i))
+        fmt(tref(t, i))
     end
     print(io, "]")
 end
@@ -148,24 +165,20 @@ end
 
 function ext2(func, base_rank1, base_rank2)
     function extended(t, u)
-        T = typeof(t)
-        U = typeof(u)
-        m = trank(t)
-        n = trank(u)
         if of_ranks(base_rank1, t, base_rank2, u)
             return func(t, u)
         elseif of_rank(base_rank1, t)
-            return tmap((eu)->extended(t, eu), u)
+            return tmap((eu) -> extended(t, eu), u)
         elseif of_rank(base_rank2, u)
-            return tmap((et)->extended(et, u), t)
+            return tmap((et) -> extended(et, u), t)
         elseif tlen(t) == tlen(u)
             return tmap(extended, t, u)
         elseif rank_gt(t, u)
-            return tmap((et)->extended(et, u), t)
+            return tmap((et) -> extended(et, u), t)
         elseif rank_gt(u, t)
-            return tmap((eu)->extended(t, eu), u)
+            return tmap((eu) -> extended(t, eu), u)
         else
-            error("I don't think we should ever reach this")
+            error("cannot apply ", func, " to shapes ", tshape(t), " and ", tshape(u))
         end
     end
     extended
