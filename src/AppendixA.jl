@@ -20,15 +20,14 @@ mutable struct Dual
     link::Any  # todo: these are functions
 end
 
-Scalar = Union{Number,Dual}
-
 dual(r, k) = Dual(r, k)
 
 is_dual(_) = false
 is_dual(::Dual) = true
 
 is_scalar(_) = false
-is_scalar(::Scalar) = true
+is_scalar(::Number) = true
+is_scalar(::Dual) = true
 
 ρ(s) = s
 ρ(d::Dual) = d.real
@@ -36,10 +35,13 @@ is_scalar(::Scalar) = true
 κ(_) = end_of_chain
 κ(d::Dual) = d.link
 
-map_star(f::Any, t) = tensor([map_star(f, tref(t, i)) for i in 0:tlen(t)-1])
-map_star(f::Any, ys::List) = map((y) -> map_star(f, y), ys)
-map_star(f::Any, y::Scalar) = f(y)
-map_star(f::Any, y::Number) = f(y)  # required because both Tensor and Scalar are supertypes of Number
+map_star(f, y) = 
+    if is_scalar(y)
+        f(y)
+    else
+        tmap((ve)->map_star(f, ve), y)
+    end
+map_star(f, ys::List) = map((y) -> map_star(f, y), ys)
 
 dual_star(d) = dual(ρ(d), end_of_chain)
 
@@ -48,10 +50,14 @@ function ∇_once(y, wrt)
     map_star((d) -> get(σ, d, 0.0), wrt)
 end
 
-∇_σ(y, σ) = foldr(∇_σ, y; init=σ)
-∇_σ(y::Scalar, σ) =
-    let k = κ(y)
-        k(y, 1.0, σ)
+
+∇_σ(y, σ) = 
+    if is_scalar(y)
+        let k = κ(y)
+            k(y, 1.0, σ)
+        end
+    else
+        foldr(∇_σ, y; init=σ)
     end
 
 function end_of_chain(d, z, σ)
