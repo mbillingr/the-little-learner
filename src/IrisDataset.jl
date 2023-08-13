@@ -4,6 +4,7 @@ export iris_test_xs, iris_test_ys, iris_train_xs, iris_train_ys
 import MLDatasets.Iris
 import DataFrames
 using ..Schemish
+using ..Tensors
 
 data = Iris()
 

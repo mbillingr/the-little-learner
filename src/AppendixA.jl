@@ -3,6 +3,7 @@ module AppendixA
 export ∇, gradient_of, map_star
 
 using ..Schemish
+using ..Tensors
 
 
 function ∇(f, θ)
