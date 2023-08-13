@@ -2,8 +2,8 @@ module Schemish
 
 export sqr
 export List, append, cons, len, list, ref, refr, snoc
-export is_scalar, flatten_2, random_tensor, rank_gt, tensor, tlen,
-    tmap, trank, tref, trefs, of_rank, zeroes, zero_tensor
+export correlate, is_scalar, flatten_2, random_tensor, rank_gt, tensor, 
+    tlen, tmap, trank, tref, trefs, of_rank, zeroes, zero_tensor
 export gradient_of
 export ext1, ext2, @ext1, @ext2
 export @with_hypers, @with_hyper
@@ -123,6 +123,38 @@ function Base.:(==)(t::MyTensor, u::MyTensor)
 
     true
 end
+
+function correlate(filterbank, signal)
+    b = tlen(filterbank)  # number of filters
+    n = tlen(signal)  # singal length
+
+    tensor([
+        tensor([
+            part_corr(
+                tref(filterbank, f),
+                signal, k)
+            for f in 0:b-1])
+        for k in 0:n-1])
+end
+
+function part_corr(filter, signal, k)
+    n = tlen(signal)
+    m = tlen(filter)
+    m2 = m ÷ 2  # half filter length
+
+    r = 0.0
+    for a in 0:m-1
+        if k + a - m2 >= 0
+            if k + a - m2 < n
+                r += dot_corr(tref(filter, a), tref(signal, k - m2 + a))
+            end
+        end
+    end
+    r
+end
+
+dot_corr(fltd, sigd) =
+    Base.sum(fltd.elements .* sigd.elements)
 
 Base.foldr(f, x::MyTensor; init) = foldr(f, x.elements; init=init)
 
