@@ -3,7 +3,8 @@ export add_rho, correlate, is_scalar, is_tensor, flatten_2, one_like, random_ten
     rank_gt, sum, sum_1, tlen, tmap, trank, tref, trefs, of_rank, zeroes, zero_tensor
 export ext1, ext2, @ext1, @ext2
 
-using ..CommonAbstractions
+export ∇, gradient_of, map_star
+
 using ..Schemish
 
 include("SimpleTensors.jl")

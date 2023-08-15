@@ -1,5 +1,6 @@
 
 import ..CommonAbstractions: tensor
+using ..CommonAbstractions
 
 struct MyTensor
     elements::AbstractArray
@@ -205,4 +206,4 @@ end
 
 sum_1∇(t, z) = tmap((t)->z, t)
 
-sum_1 = prim1(sum_1ρ, sum_1∇)
+sum_1(t) = prim1(sum_1ρ, sum_1∇)(t)

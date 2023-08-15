@@ -3,7 +3,7 @@ module AppendixB
 export ∇, gradient_of, map_star
 
 using ..CommonAbstractions
-import ..CommonAbstractions: dual, ρ, κ
+import ..CommonAbstractions: dual, ρ, κ, prim1, prim2
 using ..Schemish
 using ..Tensors
 

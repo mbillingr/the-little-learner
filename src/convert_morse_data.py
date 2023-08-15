@@ -101,7 +101,6 @@ class Ignored(Exception): pass
 with open("src/MorseDataset.jl", "w") as f:
     f.write("module MorseDataset\n")
     f.write("export morse_train_xs, morse_train_ys, morse_test_xs, morse_test_ys, morse_validate_xs, morse_validate_ys\n")
-    f.write("using ..CommonAbstractions\n")
     f.write("using ..Tensors\n")
     f.write("\n")
     for stmt in map_ignored(convert({}), parse(tokenize(load()))):
