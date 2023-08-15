@@ -1,7 +1,7 @@
 module Schemish
 
 export sqr
-export List, append, cons, len, list, ref, refr, snoc
+export List, append, cons, is_list, len, list, ref, refr, snoc
 export @with_hypers, @with_hyper
 
 # various functions
@@ -9,7 +9,11 @@ sqr(x) = x * x
 
 # lists
 List = Tuple
+is_list(obj) = false
+is_list(::List) = true
+
 list(members...)::List = members
+
 cons(m, ms::List)::List = (m, ms...)
 snoc(ms::List, m)::List = (ms..., m)
 ref(ms::List, i) = ms[i+1]  # 0-based indexing

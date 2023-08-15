@@ -3,6 +3,7 @@ export iris_test_xs, iris_test_ys, iris_train_xs, iris_train_ys
 
 import MLDatasets.Iris
 import DataFrames
+using ..CommonAbstractions
 using ..Schemish
 using ..Tensors
 
@@ -17,10 +18,11 @@ train_features = data.features[train_idx, :]
 test_targets = data.targets[test_idx, :]
 train_targets = data.targets[train_idx, :]
 
-to_tensor(df) =
+function to_tensor(df)
     let df = permutedims(df)
         tensor([df[:, c] for c in 1:DataFrames.ncol(df)])
     end
+end
 
 one_hot_encode(label) =
     if label == "Iris-setosa"

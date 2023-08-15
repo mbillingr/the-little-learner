@@ -1,4 +1,6 @@
 
+import ..CommonAbstractions: tensor
+
 struct MyTensor
     elements::AbstractArray
 end
@@ -6,8 +8,11 @@ end
 is_scalar(obj) = true
 is_scalar(obj::MyTensor) = false
 
-tensor(s) = s
-tensor(es::AbstractArray) = MyTensor([tensor(e) for e in es])
+is_tensor(obj) = false
+is_tensor(obj::MyTensor) = true
+
+CommonAbstractions.tensor(s) = s
+CommonAbstractions.tensor(es::AbstractArray) = MyTensor([tensor(e) for e in es])
 
 tlen(es) = length(es)
 tlen(t::MyTensor) = length(t.elements)
@@ -57,4 +62,50 @@ function Base.:(==)(t::MyTensor, u::MyTensor)
     end
 
     true
+end
+
+
+# frame 183:23
+function ext1(func, base_rank)
+    function extended(t)
+        if of_rank(base_rank, t)
+            return func(t)
+        else
+            return tmap(extended, t)
+        end
+    end
+    extended
+end
+
+
+function ext2(func, base_rank1, base_rank2)
+    function extended(t, u)
+        if of_ranks(base_rank1, t, base_rank2, u)
+            return func(t, u)
+        elseif of_rank(base_rank1, t)
+            return tmap((eu) -> extended(t, eu), u)
+        elseif of_rank(base_rank2, u)
+            return tmap((et) -> extended(et, u), t)
+        elseif tlen(t) == tlen(u)
+            return tmap(extended, t, u)
+        elseif rank_gt(t, u)
+            return tmap((et) -> extended(et, u), t)
+        elseif rank_gt(u, t)
+            return tmap((eu) -> extended(t, eu), u)
+        else
+            error("cannot apply ", func, " to shapes ", tshape(t), " and ", tshape(u))
+        end
+    end
+    extended
+end
+
+
+# frame 53:24
+
+function sum_1(t)
+    result = 0
+    for i in 0:tlen(t)-1
+        result = result + tref(t, i)
+    end
+    result
 end

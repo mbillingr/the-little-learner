@@ -1,11 +1,13 @@
 module Tensors
-export correlate, is_scalar, flatten_2, random_tensor, rank_gt, tensor,
-    tlen, tmap, trank, tref, trefs, of_rank, zeroes, zero_tensor
+export add_rho, correlate, is_scalar, is_tensor, flatten_2, one_like, random_tensor, 
+    rank_gt, sum, sum_1, tlen, tmap, trank, tref, trefs, of_rank, zeroes, zero_tensor
 export ext1, ext2, @ext1, @ext2
 
+using ..CommonAbstractions
 using ..Schemish
 
 include("SimpleTensors.jl")
+#include("AdvancedTensors.jl")
 
 init_tensor(f) =
     (s) ->
@@ -86,7 +88,7 @@ dot_corr(fltd, sigd) =
     Base.sum(fltd.elements .* sigd.elements)
 
 macro ext1(extended, func, base_rank)
-    :(function $extended(t)
+    :(function $extended(t::MyTensor)
         ext1($func, $base_rank)(t)
     end)
 end
@@ -95,18 +97,6 @@ macro ext1(func, base_rank)
     quote
         @ext1 $func $func $base_rank
     end
-end
-
-# frame 183:23
-function ext1(func, base_rank)
-    function extended(t)
-        if of_rank(base_rank, t)
-            return func(t)
-        else
-            return tmap(extended, t)
-        end
-    end
-    extended
 end
 
 macro ext2(extended, func, base_rank1, base_rank2)
@@ -121,31 +111,9 @@ macro ext2(func, base_rank1, base_rank2)
     end
 end
 
-
-function ext2(func, base_rank1, base_rank2)
-    function extended(t, u)
-        if of_ranks(base_rank1, t, base_rank2, u)
-            return func(t, u)
-        elseif of_rank(base_rank1, t)
-            return tmap((eu) -> extended(t, eu), u)
-        elseif of_rank(base_rank2, u)
-            return tmap((et) -> extended(et, u), t)
-        elseif tlen(t) == tlen(u)
-            return tmap(extended, t, u)
-        elseif rank_gt(t, u)
-            return tmap((et) -> extended(et, u), t)
-        elseif rank_gt(u, t)
-            return tmap((eu) -> extended(t, eu), u)
-        else
-            error("cannot apply ", func, " to shapes ", tshape(t), " and ", tshape(u))
-        end
-    end
-    extended
-end
-
 # second-tier functions
-
-@ext1 zeroes ((x) -> 0.0) 0
+zeroes(x) = 0
+@ext1 zeroes 0
 
 # extend builtins
 
@@ -157,6 +125,7 @@ end
 @ext1 Base.cos 0
 @ext1 Base.tan 0
 @ext1 Base.atan 0
+@ext1 Base.sum sum_1 1
 
 @ext2(Base.:*, 0, 0)
 @ext2(Base.:/, 0, 0)

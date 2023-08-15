@@ -1,4 +1,4 @@
-module AppendixA
+module AppendixB
 
 export ∇, gradient_of, map_star
 
@@ -18,7 +18,7 @@ gradient_of = ∇
 # Declaring it mutable seems like an easy way to ensure that
 # each Dual is a different instance.
 mutable struct Dual
-    real::Float64
+    real::Any
     link::Any  # todo: these are functions
 end
 
@@ -28,8 +28,11 @@ is_dual(_) = false
 is_dual(::Dual) = true
 
 is_scalar(_) = false
-is_scalar(::Number) = true
-is_scalar(::Dual) = true
+is_scalar(x::Number) = true
+is_scalar(d::Dual) = d.real isa Number
+
+is_dual_like(d) = is_scalar(d) || is_tensor(d)
+is_dual_like(d::Dual) = true
 
 ρ(s) = s
 ρ(d::Dual) = d.real
@@ -37,11 +40,13 @@ is_scalar(::Dual) = true
 κ(_) = end_of_chain
 κ(d::Dual) = d.link
 
-map_star(f, y) = 
-    if is_scalar(y)
+map_star(f, y) =
+    if is_dual_like(y)
         f(y)
+    elseif is_list(y)
+        tmap((ve) -> map_star(f, ve), y)
     else
-        tmap((ve)->map_star(f, ve), y)
+        y
     end
 map_star(f, ys::List) = map((y) -> map_star(f, y), ys)
 
@@ -53,18 +58,16 @@ function ∇_once(y, wrt)
 end
 
 
-∇_σ(y, σ) = 
-    if is_scalar(y)
-        let k = κ(y)
-            k(y, 1.0, σ)
-        end
+∇_σ(y, σ) =
+    if is_dual_like(y)
+        κ(y)(y, one_like(ρ(y)), σ)
     else
         foldr(∇_σ, y; init=σ)
     end
 
 function end_of_chain(d, z, σ)
     g = get(σ, d, 0.0)
-    σ[d] = z + g
+    σ[d] = add_rho(z, g)
     σ
 end
 
@@ -72,19 +75,40 @@ function constant(d, z, σ)
     end_of_chain(d, z, σ)
 end
 
-function prim1(ρ_fn, ∇_fn)
-    (da) -> let ra = ρ(da)
+prim1(ρ_fn, ∇_fn) =
+    (daf) ->
+        if daf == "ρ_function"
+            ρ_fn
+        elseif daf == "∇_function"
+            ∇_fn
+        else
+            prim1_dual(ρ_fn, ∇_fn, daf)
+        end
+
+prim1_dual(ρ_fn, ∇_fn, da) =
+    let ra = ρ(da)
         dual(
             ρ_fn(ra),
             (d, z, σ) -> let ga = ∇_fn(ra, z)
                 κ(da)(da, ga, σ)
-            end
-        )
+            end)
     end
-end
 
 function prim2(ρ_fn, ∇_fn)
-    (da, db) -> let ra = ρ(da), rb = ρ(db)
+    inner(daf) = 
+        if daf == "ρ_function"
+            ρ_fn
+        elseif daf == "∇_function"
+            ∇_fn
+        else
+            error(daf)
+        end
+    inner(da, db) = 
+        prim2_dual(ρ_fn, ∇_fn, da, db)
+end
+
+prim2_dual(ρ_fn, ∇_fn, da, db) =
+    let ra = ρ(da), rb = ρ(db)
         dual(
             ρ_fn(ra, rb),
             (d, z, σ) -> begin
@@ -94,7 +118,6 @@ function prim2(ρ_fn, ∇_fn)
             end
         )
     end
-end
 
 comparator(f) = (da, db) -> f(ρ(da), ρ(db))
 
